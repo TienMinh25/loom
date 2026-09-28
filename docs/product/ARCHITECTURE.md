@@ -1,6 +1,6 @@
 # Architecture — v1 baseline
 
-**Docs version:** 1.1.0  
+**Docs version:** 1.2.0
 **Status:** Draft baseline  
 **Last updated:** 2026-09-28
 
@@ -30,11 +30,13 @@ The UI must not call model APIs or execute tools directly. It communicates with 
 
 V1 language split:
 
-- **UI:** TypeScript, hosted in a cross-platform desktop shell. Electron is the initial recommendation for implementation speed and IDE-like UI ecosystem; keep renderer sandboxing, context isolation, restrictive navigation, and a narrow typed preload/IPC bridge enabled.
-- **Agent runtime:** Go, running as a supervised local child process. It owns agent sessions, policy, tool dispatch, workspace operations, provider calls, and durable conversation events.
+- **UI:** TypeScript + React, hosted in Electron and built/tested with Bun. React is the UI framework; Electron supplies the desktop window/process/native integration. Keep renderer sandboxing, context isolation, restrictive navigation, and a narrow typed preload/IPC bridge enabled.
+- **Agent runtime:** Go, built incrementally after the UI foundation and running as a supervised local child process once integrated. It owns agent sessions, policy, tool dispatch, workspace operations, provider calls, and durable conversation events.
 - **Boundary:** versioned JSON-RPC over stdio or a loopback-only authenticated local transport. Prefer stdio for the first version to avoid opening a local network listener. The transport must support request/response, streaming events, cancellation, and graceful shutdown.
 
-Tauri 2 with a Rust runtime remains a valid alternative only if the desktop shell changes; it does not replace the chosen Go runtime. Keep product and protocol contracts framework-neutral.
+The UI must first run against a typed mock runtime client implementing the same interface as the future IPC client. This enables complete UI workflows and interaction testing before Go runtime capabilities exist. Replace mocks with the Go RPC adapter progressively without coupling React components to transport details.
+
+Electron + React + TypeScript + Bun is the selected v1 UI stack. Keep runtime and protocol contracts independent from the desktop framework.
 
 ## 2.1 Testability and interface-first design
 

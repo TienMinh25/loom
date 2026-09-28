@@ -1,6 +1,6 @@
 # Desktop Agent Harness — Product Docs
 
-**Documentation version:** 1.1.0  
+**Documentation version:** 1.2.0
 **Product version covered:** v1 (initial definition)  
 **Status:** Draft baseline  
 **Last updated:** 2026-09-28
@@ -28,7 +28,7 @@ Record every version bump in `CHANGELOG.md`. Update the version and last-updated
 ## Baseline decisions in v1.0.0
 
 1. The desktop application is a local-first coding-agent harness for Windows and macOS.
-2. The desktop UI is implemented in TypeScript; the local agent runtime is implemented in Go.
+2. The desktop UI uses React + TypeScript, Electron, and Bun; the Go agent runtime is added incrementally after the UI foundation.
 3. A user must authenticate to the configured LLM gateway before using an LLM. Gateway authentication is the default and required path.
 4. Direct provider API-key configuration may be supported as an optional advanced provider path; it must not be required for the gateway flow.
 5. Users can open/select a project folder and navigate its files in a dedicated side panel. The initial placement is the right side, configurable later if usability calls for it.

@@ -2,6 +2,14 @@
 
 All product/architecture/UI decisions that change the v1 baseline should be recorded here. Update the version in `README.md` and affected documents with each entry.
 
+## 1.2.0 — 2026-09-28
+
+Selected the UI stack and made v1 delivery UI-first.
+
+- Selected Electron for the desktop shell, React + TypeScript for the UI, and Bun for UI package management/build/test workflows.
+- Specified that the UI is developed against a typed mock runtime client first.
+- Moved the Go runtime foundation after the interactive UI prototype; build and integrate harness capabilities progressively.
+
 ## 1.1.0 — 2026-09-28
 
 Added the implementation-language decision and first-version delivery plan.

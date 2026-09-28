@@ -1,0 +1,8 @@
+{
+  "name": "loom",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

@@ -1,10 +1,12 @@
 # UI and Interaction — v1
 
-**Docs version:** 1.0.0  
+**Docs version:** 1.2.0
 **Status:** Draft baseline  
 **Last updated:** 2026-09-28
 
 ## 1. Main window
+
+The selected v1 frontend stack is React + TypeScript hosted by Electron, with Bun for package management and UI development/build/test scripts. Electron provides the desktop shell; React renders the interface. The UI initially consumes a typed mock `RuntimeClient`; Go-backed transport is integrated progressively.
 
 Use a three-area coding workspace:
 

@@ -10,7 +10,7 @@
 
 ## Language and architecture
 
-- Desktop UI is TypeScript. Agent runtime is Go. Keep the boundary explicit and versioned.
+- Desktop UI is React + TypeScript hosted by Electron; use Bun for UI package management and scripts. Agent runtime is Go and is implemented incrementally after UI workflows are developed against a typed mock client. Keep the boundary explicit and versioned.
 - Prefer small interfaces/ports at boundaries that need substitution, independent testing, or extension. Inject implementations at composition roots.
 - Core logic must not depend directly on concrete gateway SDKs, OS credential APIs, SQLite, Electron, or global filesystem/process functions.
 - Do not introduce interfaces for every type or speculative layers without a concrete testing or extension need.

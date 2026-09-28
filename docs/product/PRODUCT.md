@@ -1,6 +1,6 @@
 # Product Definition — v1
 
-**Docs version:** 1.1.0  
+**Docs version:** 1.2.0
 **Status:** Draft baseline  
 **Last updated:** 2026-09-28
 
@@ -8,7 +8,7 @@
 
 Build a cross-platform desktop application for Windows and macOS that provides a polished coding-agent harness inspired by the workflows of Codex and Kiro. It should let a user connect to an organization or self-hosted LLM gateway, work in a local codebase, supervise agent actions, and keep conversation history locally.
 
-The desktop UI is written in TypeScript. The agent runtime is written in Go and communicates with the UI through a versioned local interface (initially a local RPC/IPC transport).
+The desktop UI is written in TypeScript with React, hosted in Electron, and built/tested with Bun. UI development comes first and must be usable with mocked runtime data before the Go harness is integrated. The agent runtime is written in Go and will be built incrementally, communicating with the UI through a versioned local interface (initially a local RPC/IPC transport).
 
 The product is the harness and desktop experience. Model inference may be supplied by an external gateway, and the application should not assume that users have direct credentials for model vendors.
 
@@ -20,6 +20,7 @@ The product is the harness and desktop experience. Model inference may be suppli
 - **Safe by default:** permissions are scoped to the selected workspace; sensitive actions are mediated by the runtime.
 - **Extensible at boundaries:** add providers, auth methods, tools, and backend integrations through stable interfaces rather than UI-specific code.
 - **Test-first development:** add a failing test for the behavior before implementing it; keep business rules testable without desktop UI, network access, or real model credentials.
+- **UI-first delivery:** build and validate the desktop user experience against typed mock data before progressively implementing and integrating the Go harness.
 - **Recoverable work:** users can inspect diffs, undo or revert changes, and resume prior conversations.
 
 ## 3. Target users
