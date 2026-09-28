@@ -1,6 +1,6 @@
 # Desktop Agent Harness — Product Docs
 
-**Documentation version:** 1.2.0
+**Documentation version:** 1.3.0
 **Product version covered:** v1 (initial definition)  
 **Status:** Draft baseline  
 **Last updated:** 2026-09-28

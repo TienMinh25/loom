@@ -16,6 +16,15 @@
 - Do not introduce interfaces for every type or speculative layers without a concrete testing or extension need.
 - Plugins/providers/tools must declare capabilities and receive only granted access; do not provide ambient machine access.
 
+## Formatting and linting
+
+- Use Prettier as the formatter. It adds semicolons, uses double quotes, 2-space indentation, trailing commas, and wraps around 100 columns.
+- Use CRLF line endings for text files, matching `.editorconfig` and `.gitattributes`.
+- Separate imports from implementation with one blank line. Use at most one consecutive blank line; do not add blank lines at the beginning or end of files.
+- Run `bun run format` to apply formatting. Run `bun run lint` to check ESLint rules and formatting; lint must not rewrite files.
+- ESLint enforces TypeScript recommended rules, React Hooks rules, curly braces, strict equality, no `var`, no `debugger`, no unused declarations, and consistent type-only imports. `console.log` is disallowed; `console.warn` and `console.error` are allowed.
+- Keep tests in the normal lint/format scope. Generated output, coverage, and dependencies are excluded.
+
 ## Product and documentation versioning
 
 - `docs/product/` is the product/architecture source of truth.

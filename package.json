@@ -4,5 +4,13 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "dev": "bun run --cwd apps/desktop dev",
+    "build": "bun run --cwd apps/desktop build",
+    "lint": "bun run --cwd apps/desktop lint",
+    "format": "bun run --cwd apps/desktop format",
+    "format:check": "bun run --cwd apps/desktop format:check",
+    "test": "bun run --cwd apps/desktop test"
+  }
 }

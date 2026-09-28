@@ -1,62 +1,227 @@
-.app-shell {
-  display: grid;
-  grid-template-columns: 240px minmax(360px, 1fr) 280px;
+.loom-app {
   min-height: 100vh;
+  background: #111318;
 }
 
-.side-panel {
-  padding: 22px 18px;
-  background: #181a21;
+.left-sidebar,
+.right-sidebar {
+  background: #191b22 !important;
 }
 
-.conversation-list {
-  border-right: 1px solid #292c35;
+.left-sidebar {
+  border-right: 1px solid #2a2d36;
 }
 
-.workspace-explorer {
-  border-left: 1px solid #292c35;
+.left-sidebar .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
 }
 
-.panel-heading {
-  margin: 0;
-  color: #f3f4f6;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+.brand,
+.explorer-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  margin: 0 4px 20px;
 }
 
-.conversation {
+.brand-icon,
+.welcome-mark {
   display: grid;
-  min-width: 0;
+  width: 30px;
+  height: 30px;
   place-items: center;
-  padding: 32px;
+  border: 1px solid #49436f;
+  border-radius: 9px;
+  background: #28243f;
+  color: #b8aaff;
+}
+
+.new-chat-button {
+  margin-bottom: 12px;
+}
+
+.search-input {
+  margin-bottom: 24px;
+}
+
+.conversation-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.section-label {
+  padding: 0 8px;
+  color: #858895;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.conversation-item {
+  overflow: hidden;
+  text-align: left;
+}
+
+.settings-button {
+  margin-top: auto;
+  text-align: left;
+}
+
+.topbar {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  border-bottom: 1px solid #2a2d36;
+  background: #15171d;
+}
+
+.workspace-label {
+  color: #c5c7d0;
+  font-size: 12px;
+}
+
+.topbar .ant-select {
+  width: 150px;
+}
+
+.conversation-area {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: calc(100vh - 58px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 28px 150px;
+  background: #111318;
 }
 
 .welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: auto 0;
   text-align: center;
 }
 
-.welcome h1 {
-  margin: 0 0 10px;
-  color: #f9fafb;
-  font-size: 32px;
+.welcome-mark {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+  font-size: 20px;
+}
+
+.welcome h2.ant-typography {
+  margin: 0 0 8px;
+  color: #f0f0f4;
+  font-size: 25px;
   font-weight: 600;
-  letter-spacing: -0.04em;
 }
 
-.welcome p,
-.empty-state {
-  margin: 0;
-  color: #9ca3af;
-  font-size: 13px;
+.composer-wrap {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  left: 28px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 12px;
+  border: 1px solid #353842;
+  border-radius: 14px;
+  background: #1a1c23;
+  box-shadow: 0 12px 36px #0004;
 }
 
-.empty-state {
-  margin-top: 24px;
+.composer-wrap textarea.ant-input {
+  resize: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-@media (max-width: 900px) {
-  .app-shell {
-    grid-template-columns: 190px minmax(320px, 1fr) 220px;
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 2px 0 8px;
+  font-size: 11px;
+}
+
+.message-list {
+  display: flex;
+  width: min(760px, 100%);
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 32px;
+}
+
+.user-message {
+  max-width: 80%;
+  align-self: flex-end;
+  padding: 12px 16px;
+  border: 1px solid #343746;
+  border-radius: 16px 16px 4px 16px;
+  background: #242633;
+  white-space: pre-wrap;
+}
+
+.prototype-note {
+  align-self: center;
+  font-size: 12px;
+}
+
+.right-sidebar {
+  border-left: 1px solid #2a2d36;
+}
+
+.explorer-panel {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  padding: 20px 16px;
+}
+
+.explorer-heading {
+  margin: 0 0 18px;
+}
+
+.explorer-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #777b88;
+  font-size: 22px;
+}
+
+.gateway-status {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #30333d;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #e3a849;
+}
+
+@media (max-width: 1050px) {
+  .right-sidebar {
+    display: none;
   }
 }

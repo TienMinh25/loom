@@ -2,6 +2,14 @@
 
 All product/architecture/UI decisions that change the v1 baseline should be recorded here. Update the version in `README.md` and affected documents with each entry.
 
+## 1.3.0 — 2026-09-28
+
+Selected Ant Design as the v1 component library and expanded the first interactive UI prototype.
+
+- Use Ant Design for common controls and layout, with limited custom CSS for Loom-specific composition and theme.
+- Added tests for the folder-open affordance and sending a prompt in local prototype state.
+- Documented that the prototype does not yet connect to the agent runtime.
+
 ## 1.2.0 — 2026-09-28
 
 Selected the UI stack and made v1 delivery UI-first.
