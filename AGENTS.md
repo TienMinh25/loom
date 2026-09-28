@@ -1,0 +1,23 @@
+# Project Rules
+
+## Required workflow: TDD
+
+- Use test-driven development for every behavior change: write a focused failing test first, implement the smallest change that makes it pass, then refactor while keeping tests green.
+- Do not add production behavior without corresponding tests. Bug fixes must include a regression test.
+- Keep tests deterministic. Do not require real gateway access, real API credentials, or external services; use fakes or local stubs.
+- Test domain and orchestration logic independently from UI, database, filesystem, and network adapters where practical. Add adapter integration/contract tests at those boundaries.
+- Before finishing a change, run the relevant tests and report what was run and any tests that could not be run.
+
+## Language and architecture
+
+- Desktop UI is TypeScript. Agent runtime is Go. Keep the boundary explicit and versioned.
+- Prefer small interfaces/ports at boundaries that need substitution, independent testing, or extension. Inject implementations at composition roots.
+- Core logic must not depend directly on concrete gateway SDKs, OS credential APIs, SQLite, Electron, or global filesystem/process functions.
+- Do not introduce interfaces for every type or speculative layers without a concrete testing or extension need.
+- Plugins/providers/tools must declare capabilities and receive only granted access; do not provide ambient machine access.
+
+## Product and documentation versioning
+
+- `docs/product/` is the product/architecture source of truth.
+- When a requirement or accepted architecture decision changes, update the affected docs, bump the docs version in `docs/product/README.md` and affected documents, and add a dated entry to `docs/product/CHANGELOG.md` in the same change.
+- Keep proposals labeled as proposals until accepted.
