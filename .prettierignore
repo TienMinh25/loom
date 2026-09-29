@@ -1,0 +1,4 @@
+apps/desktop/dist/
+apps/desktop/dist-electron/
+apps/desktop/release/
+node_modules/

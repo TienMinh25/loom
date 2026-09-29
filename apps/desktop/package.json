@@ -3,22 +3,53 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "description": "Loom desktop coding-agent harness UI",
+  "author": "Loom",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev:desktop": "concurrently -k \"vite --host 127.0.0.1 --strictPort\" \"wait-on http://127.0.0.1:5173 && cross-env electron_config_cache=.electron-cache VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "tsc -b && vite build && bun run build:runtime && bun run build:electron",
+    "build:runtime": "bun scripts/build-runtime.ts",
+    "build:electron": "tsc --ignoreConfig --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --types node,electron --outDir dist-electron electron/main.ts electron/agentBridge.ts electron/providerConfigStore.ts electron/runtimeClient.ts electron/runtimeProcess.ts electron/workspaceBridge.ts electron/windowPolicy.ts electron/navigationPolicy.ts shared/desktopApi.ts && bun build electron/preload.ts --target=node --format=cjs --external electron --outfile=dist-electron/preload.cjs",
+    "package:win": "bun run build && cross-env electron_config_cache=.electron-cache electron-builder --win nsis",
+    "package:mac": "bun run build && cross-env electron_config_cache=.electron-cache electron-builder --mac dmg",
     "lint": "eslint . --max-warnings=0 && prettier --check .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview",
     "test": "bun test"
   },
-  "dependencies": {
-    "@ant-design/icons": "^6.3.4",
-    "antd": "^6.6.5",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+  "build": {
+    "appId": "dev.loom.desktop",
+    "productName": "Loom",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "dist-electron/loom-runtime*"
+    ],
+    "mac": {
+      "icon": "build-resources/loom.icns",
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "icon": "build-resources/loom.ico",
+      "target": [
+        "nsis"
+      ]
+    }
   },
   "devDependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "antd": "^6.6.5",
     "@eslint/js": "^10.0.1",
     "@happy-dom/global-registrator": "^20.14.5",
     "@testing-library/dom": "^10.4.2",
@@ -29,13 +60,20 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
     "globals": "^17.12.0",
     "prettier": "^3.9.9",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.69.0",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "wait-on": "^9.1.0"
   }
 }

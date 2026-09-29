@@ -1,8 +1,8 @@
 # Architecture — v1 baseline
 
-**Docs version:** 1.2.0
+**Docs version:** 1.19.0
 **Status:** Draft baseline  
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 
 ## 1. Shape of the application
 
@@ -15,8 +15,8 @@
 │ Local Agent Runtime                                           │
 │ run/session state · policy · tool loop · event stream         │
 ├───────────────────┬────────────────────┬────────────────────┤
-│ Gateway/provider  │ Tool executor       │ Workspace indexing │
-│ & auth adapters   │ files/shell/etc.    │ search/symbols      │
+│ Provider adapter  │ Workspace executor  │ Future indexing    │
+│ OpenAI-compatible │ list/read/write     │ search/symbols      │
 ├───────────────────┴────────────────────┴────────────────────┤
 │ Plugin host / MCP clients / capability and permission checks  │
 └───────────────────────────┬─────────────────────────────────┘
@@ -24,19 +24,34 @@
           SQLite + local workspace + OS credential store
 ```
 
-The UI must not call model APIs or execute tools directly. It communicates with the local runtime using typed commands and subscribes to typed events. The runtime owns agent runs, policy decisions, tool execution, and persistence.
+The UI must not call model APIs or execute tools directly. It communicates with the local runtime using typed commands and subscribes to typed events. The runtime owns agent runs, policy decisions, and tool execution. Conversation data currently persists in renderer local storage; durable SQLite metadata and append-only JSONL transcripts remain a proposal in [Session storage design](SESSION_STORAGE.md).
 
 ## 2. Suggested implementation stack
 
 V1 language split:
 
 - **UI:** TypeScript + React, hosted in Electron and built/tested with Bun. React is the UI framework; Electron supplies the desktop window/process/native integration. Keep renderer sandboxing, context isolation, restrictive navigation, and a narrow typed preload/IPC bridge enabled.
-- **Agent runtime:** Go, built incrementally after the UI foundation and running as a supervised local child process once integrated. It owns agent sessions, policy, tool dispatch, workspace operations, provider calls, and durable conversation events.
-- **Boundary:** versioned JSON-RPC over stdio or a loopback-only authenticated local transport. Prefer stdio for the first version to avoid opening a local network listener. The transport must support request/response, streaming events, cancellation, and graceful shutdown.
+- **Agent runtime:** Go 1.26.0, lazily started as a supervised local child process. Development runs `go run`; packaged apps run the bundled native executable. Builds set `CGO_ENABLED=0`, so no GCC/C toolchain is needed.
+- **Runtime location:** the Go module lives at repository root `runtime/`, alongside `apps/`.
+- **Boundary:** versioned JSON-RPC over stdio. The Electron main process owns the native directory picker and exposes a narrow, versioned IPC API to the renderer. The JSON-lines protocol supports request/response and is extended with typed streaming events, cancellation, and graceful shutdown as agent runs are implemented.
 
-The UI must first run against a typed mock runtime client implementing the same interface as the future IPC client. This enables complete UI workflows and interaction testing before Go runtime capabilities exist. Replace mocks with the Go RPC adapter progressively without coupling React components to transport details.
+The UI keeps a typed desktop API boundary and can run in browser preview mode with deterministic local fixtures. Electron routes workspace access through the supervised Go process; renderer components do not access the filesystem directly. Workspace paths are relative to the active root and the runtime enforces that scope.
 
 Electron + React + TypeScript + Bun is the selected v1 UI stack. Keep runtime and protocol contracts independent from the desktop framework.
+
+### 2.3 Go runtime composition and HTTP contracts
+
+Keep the Go runtime small and organized around concrete seams rather than mirroring a large service template:
+
+- `cmd/loom-runtime`: composition root and process entry point.
+- `internal/app`: Uber Fx dependency graph, runtime startup, and graceful shutdown hooks.
+- `internal/protocol`: versioned JSON-lines request/response DTOs and dispatch.
+- `internal/workspace`: filesystem operations scoped to the selected workspace, including exclusive file creation, directory creation, and contained deletion.
+- `internal/adapter/httpclient`: injected `HTTPDoer`, typed JSON request/response helpers, structured HTTP errors, and generic Server-Sent Events parsing.
+- `internal/adapter/provider/openai`: OpenAI-compatible Chat Completions DTOs and response mapping.
+- `internal/agent`: normalized provider DTOs, registry, bounded tool loop, and approval boundary.
+
+The shared HTTP adapter owns request construction, JSON encoding/decoding, status handling, response size limits, context cancellation, and SSE framing. Provider-specific request/response DTOs belong in the provider adapter and must not leak into the app or UI. Keep SSE events generic at this layer so provider-specific terminal markers and payloads are interpreted by their adapter. Use Uber Fx only at the composition root and for process lifecycle; application and workspace packages remain independently testable without an Fx container.
 
 ## 2.1 Testability and interface-first design
 
@@ -44,9 +59,9 @@ Use small Go interfaces at boundaries where implementations may vary or need iso
 
 Initial ports (names illustrative):
 
-- `ModelGateway`: stream model responses/tool proposals; implemented by the gateway adapter and optional direct-provider adapter.
-- `Authenticator` / `CredentialStore`: login lifecycle and secure secret references, with OS-specific credential-store adapters.
-- `Workspace`: scoped list/read/write/search/stat operations, with filesystem adapter.
+- `ModelProvider`: stream model responses/tool proposals; the first adapter is OpenAI-compatible.
+- `CredentialStore`: secure provider secret storage, with Electron OS-backed encryption at the desktop boundary.
+- `Workspace`: scoped list/read/write/stat operations, with filesystem adapter.
 - `CommandRunner`: structured command execution, cancellation, output, timeout, and policy context.
 - `ConversationRepository`: append/read events and resume session state, with SQLite adapter.
 - `ApprovalPolicy` and `ApprovalBroker`: decide allow/ask/deny and deliver requests to the UI boundary.
@@ -61,22 +76,20 @@ Development is test-first: write a focused failing test that states the behavior
 
 ## 3. Authentication and model/provider boundary
 
-### Required standard path
+### Initial integration path
 
-- A configured gateway is the default and required authentication target.
-- The app must not permit an unauthenticated model request.
-- Auth is an adapter, separate from provider/model transport. It may use OAuth/OIDC, device authorization, browser-based SSO, or a gateway-specific flow.
-- Tokens/secrets are stored in Windows Credential Manager/macOS Keychain (or a vetted cross-platform OS credential abstraction), not plaintext settings or SQLite.
-- The runtime attaches credentials to gateway requests and handles expiry, refresh, logout, and safe error reporting.
-- Do not silently switch to direct vendor access when gateway auth fails.
+- The first live path is an explicitly configured OpenAI-compatible Chat Completions endpoint, including self-hosted gateways.
+- The user supplies base URL, model, and optional API key. Send no implicit requests before configuration.
+- Electron main persists API keys using Electron `safeStorage`; renderer storage and logs never receive a saved key.
+- Backend-specific SSE contracts can be adapted to normalized runtime events without changing UI DTOs.
 
-### Optional direct API key
+### Provider configuration and credentials
 
-Direct API-key configuration is an advanced, optional provider path. It must be explicitly enabled and labeled as bypassing the configured gateway. Store the key in the OS credential store. Keep its configuration isolated from gateway credentials, and make the active route/provider visible in the UI.
+OAuth/OIDC, device auth, model discovery, refresh/logout, and organization identity remain future work. Keep an `AuthProvider` separate from `ModelProvider` when implemented.
 
 ### Interfaces
 
-Keep an `AuthProvider` interface responsible for login/refresh/logout and secret references, and a `ModelProvider` interface responsible for model discovery, streaming responses, tool-call exchange, and usage metadata. A gateway can implement `ModelProvider` while using a separate auth adapter. A compatible gateway may use an OpenAI-compatible adapter; do not bake that assumption into the core runtime.
+Keep an `AuthProvider` interface responsible for login/refresh/logout and secret references, and a provider-neutral `ModelProvider` interface for completion, streaming, tool calls, and usage metadata. The current first adapter uses OpenAI-compatible Chat Completions.
 
 ## 4. Runtime and tool execution
 
@@ -93,7 +106,9 @@ The agent loop follows this sequence:
 
 Tool effects should be declared (read, write, execute, network, credential access) and scoped (workspace roots, specific resource/server). The policy engine must enforce scope at execution time, not rely on a UI prompt alone.
 
-Core v1 tools: list/search/read workspace files, apply file edits, inspect diff, and run a command through an OS-specific execution layer. Avoid shell string interpolation; pass structured argv where possible, capture stdout/stderr/exit status, support cancellation and timeouts, and isolate environment variables/secrets.
+Initial provider: OpenAI-compatible chat completions with SSE streaming and function-call deltas. The Electron main process stores the optional API key through OS-backed encryption and configures the runtime. A future backend can implement the same internal provider port using its shared request/SSE contract.
+
+Initial tools: list/read/write files under the selected workspace. Every model-proposed tool waits for an explicit approval response. Search/index, diff review, command execution, terminal, Git operations, and richer policy modes are not implemented yet. Future commands must use structured argv and support cancellation/timeouts.
 
 ## 5. Approval and safety model
 
@@ -134,4 +149,3 @@ Indexing should be incremental and local. Begin with ignore-aware file discovery
 ## 9. IPC and event contract
 
 Use explicit commands (e.g. `workspace.open`, `run.start`, `run.cancel`, `approval.respond`, `conversation.resume`) and typed events (e.g. `run.delta`, `tool.requested`, `approval.required`, `tool.completed`, `diff.updated`, `index.progress`). Validate all payloads at the process boundary and associate events with conversation/run IDs. Do not expose a generic `invoke arbitrary function` bridge.
-

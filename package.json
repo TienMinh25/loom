@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev": "bun run --cwd apps/desktop dev",
+    "dev:desktop": "bun run --cwd apps/desktop dev:desktop",
     "build": "bun run --cwd apps/desktop build",
     "lint": "bun run --cwd apps/desktop lint",
     "format": "bun run --cwd apps/desktop format",

@@ -1,9 +1,9 @@
 # Desktop Agent Harness — Product Docs
 
-**Documentation version:** 1.3.0
+**Documentation version:** 1.19.0
 **Product version covered:** v1 (initial definition)  
 **Status:** Draft baseline  
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 
 This folder is the source of truth for the first version of the desktop agent harness. Update the version and `CHANGELOG.md` whenever a decision or requirement changes. Keep implementation-specific proposals labeled as proposals until accepted.
 
@@ -11,6 +11,7 @@ This folder is the source of truth for the first version of the desktop agent ha
 
 - [Product requirements](PRODUCT.md) — goals, users, core workflows, and v1 scope.
 - [Architecture](ARCHITECTURE.md) — application boundaries, authentication, providers, tools, storage, and plugin model.
+- [Session storage design](SESSION_STORAGE.md) — current renderer persistence and the proposed SQLite/JSONL runtime store.
 - [UI behavior](UI.md) — layout and interaction behavior, including workspace/folder navigation.
 - [V1 delivery plan](PLAN.md) — staged implementation plan, TDD gates, and initial milestones.
 - [Version history](CHANGELOG.md) — dated record of decisions and document changes.
@@ -29,9 +30,8 @@ Record every version bump in `CHANGELOG.md`. Update the version and last-updated
 
 1. The desktop application is a local-first coding-agent harness for Windows and macOS.
 2. The desktop UI uses React + TypeScript, Electron, and Bun; the Go agent runtime is added incrementally after the UI foundation.
-3. A user must authenticate to the configured LLM gateway before using an LLM. Gateway authentication is the default and required path.
-4. Direct provider API-key configuration may be supported as an optional advanced provider path; it must not be required for the gateway flow.
+3. The first live model path is OpenAI-compatible base URL/model/API key; backend-specific auth may be introduced behind a shared adapter later.
+4. Provider credentials are stored through the operating-system encryption available from Electron.
 5. Users can open/select a project folder and navigate its files in a dedicated side panel. The initial placement is the right side, configurable later if usability calls for it.
 6. Tool calls are mediated by the local runtime and explicit workspace/security policies; plugins do not receive ambient access by default.
 7. Development follows TDD. Core runtime capabilities depend on interfaces/ports and injected adapters, not concrete providers or operating-system implementations.
-

@@ -1,13 +1,13 @@
 # V1 Delivery Plan
 
-**Docs version:** 1.2.0
+**Docs version:** 1.19.0
 **Product target:** v1.0  
 **Status:** Proposed implementation sequence  
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 
 ## Goal
 
-Build the desktop experience first with Electron, React, TypeScript, and Bun. Then implement and integrate the Go harness incrementally. The v1 product ultimately includes mandatory gateway authentication for its standard model path, local workspace/file navigation, reviewable tools and approvals, and locally persisted conversations.
+Build the desktop experience with Electron, React, TypeScript, and Bun, with a Go 1.26.0 local runtime. The first live model path is OpenAI-compatible; the product target also includes local project editing, reviewable tools and approvals, and persisted conversations.
 
 ## Delivery principles
 
@@ -64,12 +64,14 @@ Build the desktop experience first with Electron, React, TypeScript, and Bun. Th
 **Deliverables**
 
 - Go module and runtime executable skeleton.
-- Versioned local protocol and process lifecycle: handshake, health/status, events, cancellation, graceful shutdown.
+- Versioned local protocol and process lifecycle, composed with Uber Fx: workspace request/response, stdin EOF shutdown, and process supervision. Handshake, health/status, run events, and cancellation remain to implement.
+- Shared outbound HTTP adapter for typed JSON request/response and generic SSE framing; provider DTOs and gateway integration remain to implement.
 - Electron process supervisor and real IPC/RPC `RuntimeClient` adapter; keep mock adapter for UI tests.
 
 **TDD gate**
 
 - Go protocol/lifecycle tests and shared contract fixtures.
+- `httptest` contract tests for normal JSON responses, structured HTTP errors, SSE events, and handler cancellation.
 - UI tests for disconnected, reconnecting, and protocol mismatch states.
 - Integration test starts runtime and exchanges health request/event.
 
@@ -77,25 +79,25 @@ Build the desktop experience first with Electron, React, TypeScript, and Bun. Th
 
 - App starts/stops Go process and can switch from mock to real client without React component changes.
 
-## Phase 3 — Gateway authentication and model streaming
+## Phase 3 — OpenAI-compatible provider and model streaming
 
 **Deliverables**
 
-- Gateway settings, sign-in/sign-out and expired-session states.
-- `Authenticator` and `ModelGateway` ports with gateway adapter; secure credential storage per OS.
-- Model discovery/capabilities and streamed responses.
-- Optional direct provider/API-key path behind an explicit advanced setting.
+- OpenAI-compatible endpoint/model/API key settings with OS-encrypted key persistence.
+- Provider-neutral model port, streamed responses, tool loop, cancellation, and approval response.
+- Workspace-scoped list/read/write tools protected by approval, plus explicit user-driven file creation that fails safely when a path already exists.
+- OAuth, organization identity, model discovery, multiple providers, and advanced permission modes remain future work.
 
 **TDD gate**
 
-- Test unauthenticated rejection, login/refresh/logout, expiry, gateway failures, and no silent fallback.
+- Test invalid provider settings, provider errors, streaming, cancellation, approval roundtrips, and no silent fallback.
 - Adapter contract tests use local stubs; UI tests use fakes. No real credentials/network calls.
 
 **Exit criteria**
 
 - Signed-in user can stream a response; unauthenticated requests are rejected; secrets never appear in logs or SQLite.
 
-## Phase 4 — Local persistence and conversation lifecycle
+## Phase 4 — Local persistence and conversation lifecycle (future)
 
 **Deliverables**
 
@@ -188,5 +190,4 @@ This is a proposal, not a requirement to create empty abstractions. Keep package
 
 ## Version 1 release definition
 
-V1 is complete when a user can authenticate to the configured gateway, open and navigate a local project folder, converse with a streaming model, review and approve scoped tool actions, inspect/revert file changes, and resume locally stored conversations after restart on Windows and macOS.
-
+V1 is complete when a user can configure a provider, open and navigate a local project folder, converse with a streaming model, review and approve scoped tool actions, inspect/revert file changes, and resume locally stored conversations after restart on Windows and macOS.
