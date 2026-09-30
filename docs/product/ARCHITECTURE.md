@@ -1,6 +1,6 @@
 # Architecture — v1 baseline
 
-**Docs version:** 1.19.0
+**Docs version:** 1.47.0
 **Status:** Draft baseline  
 **Last updated:** 2026-09-29
 
@@ -39,7 +39,17 @@ The UI keeps a typed desktop API boundary and can run in browser preview mode wi
 
 Electron + React + TypeScript + Bun is the selected v1 UI stack. Keep runtime and protocol contracts independent from the desktop framework.
 
-### 2.3 Go runtime composition and HTTP contracts
+### 2.2 IPC transport assessment: keep supervised stdio for now
+
+Electron currently communicates with its single Go runtime child using versioned JSON Lines over stdin/stdout. Keep that behavior unchanged while the chat/settings UI is completed. This is an assessment of the current choice, not a proposal to rewrite the runtime transport now. It does not assume pipes are inherently race-free. Message boundaries are explicit newline-delimited JSON; every request has an ID; response and event frames carry that ID; the TypeScript client correlates frames through a pending-request map; the Go server serializes stdout writes with a mutex; stderr is separate from protocol data; and process exit fails outstanding requests. Those measures address byte interleaving and request/response correlation.
+
+Do not add shared protocol writes that bypass the synchronized writer. Preserve the invariant that streaming events and ordinary responses are correlated by request ID, and add tests for concurrent streams/requests, cancellation, malformed frames, process exit, and output backpressure as those behaviors grow.
+
+Loopback HTTP with SSE or WebSocket is not automatically safer from races. It moves concurrency into handlers and event delivery while adding server startup/readiness, port selection, local authentication, origin/CSRF protections, bind-address enforcement, lifecycle cleanup, reconnect/replay semantics, and exposure to other local processes. It becomes preferable if Loom needs multiple independent clients, remote control, attach/reconnect after UI reload, or a public SDK/server mode. If that requirement appears, evaluate an authenticated loopback service with an ephemeral port and explicit event replay contract; do not expose an unauthenticated fixed-port server.
+
+For the current one Electron main process supervising one local runtime, stdio keeps runtime discovery and shutdown tied to the owning desktop process and gives the renderer no direct socket access. The renderer communicates only through a narrow versioned Electron IPC preload API. Model-provider HTTP inside Go is a separate outbound adapter, unrelated to desktop/runtime IPC. Keep the existing transport for now; revisit only when concrete requirements such as multiple clients, remote control, runtime reattachment, or a public SDK make the additional server complexity worthwhile.
+
+### 2.3 Go runtime composition and outbound HTTP contracts
 
 Keep the Go runtime small and organized around concrete seams rather than mirroring a large service template:
 
@@ -53,7 +63,7 @@ Keep the Go runtime small and organized around concrete seams rather than mirror
 
 The shared HTTP adapter owns request construction, JSON encoding/decoding, status handling, response size limits, context cancellation, and SSE framing. Provider-specific request/response DTOs belong in the provider adapter and must not leak into the app or UI. Keep SSE events generic at this layer so provider-specific terminal markers and payloads are interpreted by their adapter. Use Uber Fx only at the composition root and for process lifecycle; application and workspace packages remain independently testable without an Fx container.
 
-## 2.1 Testability and interface-first design
+## 2.4 Testability and interface-first design
 
 Use small Go interfaces at boundaries where implementations may vary or need isolation in tests. Avoid defining interfaces for every struct or mirroring concrete types without a demonstrated substitution seam. Core application services depend on ports, with adapters supplied at startup.
 
@@ -70,7 +80,7 @@ Initial ports (names illustrative):
 
 Keep domain and orchestration logic independent from Electron, SQLite, filesystem globals, network clients, and provider SDKs. Use constructor injection. Prefer in-memory fakes for unit tests and local adapter integration tests for persistence/process/filesystem boundaries.
 
-## 2.2 TDD rule
+## 2.5 TDD rule
 
 Development is test-first: write a focused failing test that states the behavior, implement the smallest change to pass, then refactor while keeping tests green. For each feature, include unit tests for domain/orchestration and contract tests for adapters/protocol boundaries; add end-to-end tests for critical user journeys. Never make real gateway calls or require real credentials in automated tests. CI must run Go tests and TypeScript tests/lint/type-check before merge.
 

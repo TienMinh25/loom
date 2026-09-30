@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import {
   parsePanelWidths,
   expandedWidthFromDrag,
+  isCompactPanelLayout,
   rememberExpandedWidths,
   resizePanelLayout,
   settlePanelLayout,
@@ -17,6 +18,13 @@ test("panel width persistence validates saved dimensions and falls back safely",
   expect(parsePanelWidths("[10, 900]")).toEqual([190, 420]);
   expect(parsePanelWidths("broken")).toEqual([248, 280]);
   expect(parsePanelWidths('["wide", 280]')).toEqual([248, 280]);
+});
+
+test("uses the compact panel layout below the width needed for three workbench panels", () => {
+  expect(isCompactPanelLayout(0)).toBe(false);
+  expect(isCompactPanelLayout(252)).toBe(true);
+  expect(isCompactPanelLayout(799)).toBe(true);
+  expect(isCompactPanelLayout(800)).toBe(false);
 });
 
 test("panel resize ignores collapsed rail widths while retaining the expanded width", () => {
@@ -66,4 +74,32 @@ test("keeps live drag sizes for panels that were already expanded", () => {
   expect(resizePanelLayout([310, 500, 270], [248, 280, 300], true, true, [248, 280])).toEqual([
     310, 500, 270,
   ]);
+});
+
+test("dragging an open panel below its collapse threshold collapses it", () => {
+  expect(settlePanelLayout([60, 900, 280], [248, 280], true, true)).toEqual({
+    layout: [48, 900, 280],
+    remembered: [248, 280],
+  });
+});
+
+test("keeps an open panel at its expanded width until drag release crosses the collapse threshold", () => {
+  const inBetween = settlePanelLayout([96, 900, 280], [248, 280], true, true);
+  expect(inBetween.layout[0]).toBe(190);
+  expect(inBetween.remembered[0]).toBe(248);
+
+  const rightInBetween = settlePanelLayout([248, 900, 96], [248, 280], true, true);
+  expect(rightInBetween.layout[2]).toBe(210);
+  expect(rightInBetween.remembered[1]).toBe(280);
+});
+
+test("settling a collapsed panel drag keeps its last expanded width for the next restore", () => {
+  const left = settlePanelLayout([60, 900, 280], [248, 280], true, true);
+  expect(left).toEqual({
+    layout: [48, 900, 280],
+    remembered: [248, 280],
+  });
+
+  const restored = resizePanelLayout([48, 900, 280], [48, 900, 280], true, true, left.remembered);
+  expect(restored).toEqual([248, 900, 280]);
 });

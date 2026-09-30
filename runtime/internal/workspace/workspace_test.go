@@ -8,6 +8,46 @@ import (
 	"testing"
 )
 
+func TestCreateRootCreatesNamedWorkspaceUnderSelectedParent(t *testing.T) {
+	parent := t.TempDir()
+	created, err := CreateRoot(parent, "my-workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = created.Close() })
+
+	want := filepath.Join(parent, "my-workspace")
+	if created.Name() != want {
+		t.Fatalf("unexpected workspace root: got %q, want %q", created.Name(), want)
+	}
+	info, err := os.Stat(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("created workspace is not a directory: %q", want)
+	}
+}
+
+func TestCreateRootRejectsInvalidNamesAndExistingDirectories(t *testing.T) {
+	parent := t.TempDir()
+	if err := os.Mkdir(filepath.Join(parent, "existing"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"", ".", "..", "../outside", `nested\\workspace`, "/absolute", "bad:name", "bad*name", "CON", "LPT1.log", "trailing."} {
+		if _, err := CreateRoot(parent, name); !errors.Is(err, ErrInvalidPath) {
+			t.Errorf("CreateRoot(%q) error = %v, want %v", name, err, ErrInvalidPath)
+		}
+	}
+	if _, err := CreateRoot(parent, "existing"); !errors.Is(err, ErrPathExists) {
+		t.Fatalf("existing destination error = %v, want %v", err, ErrPathExists)
+	}
+	if _, err := os.Stat(filepath.Join(parent, "outside")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("invalid name created an outside directory: %v", err)
+	}
+}
+
 func TestWorkspaceListsReadsAndWritesFilesWithinItsRoot(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, "src"), 0o700); err != nil {
@@ -48,6 +88,36 @@ func TestWorkspaceListsReadsAndWritesFilesWithinItsRoot(t *testing.T) {
 	}
 	if string(content) != "package main\n\nfunc main() {}" {
 		t.Fatalf("write did not update workspace file: %q", content)
+	}
+}
+
+func TestWorkspaceGitStatusReadsBranchAndIgnoresWorktreePointerTargets(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".git", "refs", "heads"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git", "HEAD"), []byte("ref: refs/heads/feature/chat-ui\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = workspace.Close() })
+	isGit, branch, err := workspace.GitStatus()
+	if err != nil || !isGit || branch != "feature/chat-ui" {
+		t.Fatalf("GitStatus()=(%v,%q,%v)", isGit, branch, err)
+	}
+
+	if err := os.RemoveAll(filepath.Join(root, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git"), []byte("gitdir: ../outside/worktrees/demo\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	isGit, branch, err = workspace.GitStatus()
+	if err != nil || !isGit || branch != "" {
+		t.Fatalf("worktree GitStatus()=(%v,%q,%v), expected branch unavailable without escaping root", isGit, branch, err)
 	}
 }
 

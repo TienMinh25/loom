@@ -102,7 +102,27 @@ func (server *Server) Handle(request Request) Response {
 		return result(response, struct {
 			Root string `json:"root"`
 		}{Root: opened.Name()})
-	case "workspace.list", "workspace.readFile", "workspace.writeFile", "workspace.createFile", "workspace.createDirectory", "workspace.delete":
+	case "workspace.createRoot":
+		var params struct {
+			Parent string `json:"parent"`
+			Name   string `json:"name"`
+		}
+		if err := decodeParams(request.Params, &params); err != nil {
+			return fail(response, "invalid_params", err.Error())
+		}
+		created, err := workspace.CreateRoot(params.Parent, params.Name)
+		if err != nil {
+			return fail(response, "workspace_error", err.Error())
+		}
+		if err := server.closeWorkspace(); err != nil {
+			_ = created.Close()
+			return fail(response, "workspace_error", err.Error())
+		}
+		server.workspace = created
+		return result(response, struct {
+			Root string `json:"root"`
+		}{Root: created.Name()})
+	case "workspace.list", "workspace.readFile", "workspace.writeFile", "workspace.createFile", "workspace.createDirectory", "workspace.delete", "workspace.rename", "workspace.gitStatus":
 		if server.workspace == nil {
 			return fail(response, "workspace_not_open", "open a workspace before using workspace files")
 		}
@@ -150,6 +170,15 @@ func (server *Server) Handle(request Request) Response {
 	}
 
 	switch request.Method {
+	case "workspace.gitStatus":
+		isGit, branch, err := server.workspace.GitStatus()
+		if err != nil {
+			return fail(response, "workspace_error", err.Error())
+		}
+		return result(response, struct {
+			IsGit  bool   `json:"isGit"`
+			Branch string `json:"branch"`
+		}{IsGit: isGit, Branch: branch})
 	case "workspace.list":
 		var params struct {
 			Path string `json:"path"`
@@ -229,6 +258,20 @@ func (server *Server) Handle(request Request) Response {
 		return result(response, struct {
 			Deleted bool `json:"deleted"`
 		}{Deleted: true})
+	case "workspace.rename":
+		var params struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		}
+		if err := decodeParams(request.Params, &params); err != nil {
+			return fail(response, "invalid_params", err.Error())
+		}
+		if err := server.workspace.Rename(params.From, params.To); err != nil {
+			return fail(response, "workspace_error", err.Error())
+		}
+		return result(response, struct {
+			Renamed bool `json:"renamed"`
+		}{Renamed: true})
 	default:
 		return fail(response, "method_not_found", "unsupported runtime method")
 	}

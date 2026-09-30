@@ -4,15 +4,25 @@ import { AGENT_CHANNELS, DESKTOP_API_VERSION, WORKSPACE_CHANNELS } from "../shar
 contextBridge.exposeInMainWorld("loomDesktop", {
   version: DESKTOP_API_VERSION,
   platform: process.platform,
+  onMenuAction: (callback: (action: string, value?: boolean) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, action: string, value?: boolean) =>
+      callback(action, value);
+    ipcRenderer.on("app:menu", listener);
+    return () => ipcRenderer.removeListener("app:menu", listener);
+  },
+  setAutoSaveState: (enabled: boolean) => ipcRenderer.send("app:auto-save-state", enabled),
   workspace: {
     open: () => ipcRenderer.invoke(WORKSPACE_CHANNELS.open),
+    create: (name: string) => ipcRenderer.invoke(WORKSPACE_CHANNELS.create, name),
     list: (path: string) => ipcRenderer.invoke(WORKSPACE_CHANNELS.list, path),
+    gitStatus: () => ipcRenderer.invoke(WORKSPACE_CHANNELS.gitStatus),
     readFile: (path: string) => ipcRenderer.invoke(WORKSPACE_CHANNELS.readFile, path),
     writeFile: (path: string, content: string) =>
       ipcRenderer.invoke(WORKSPACE_CHANNELS.writeFile, path, content),
     createFile: (path: string) => ipcRenderer.invoke(WORKSPACE_CHANNELS.createFile, path),
     createDirectory: (path: string) => ipcRenderer.invoke(WORKSPACE_CHANNELS.createDirectory, path),
     delete: (path: string) => ipcRenderer.invoke(WORKSPACE_CHANNELS.delete, path),
+    rename: (from: string, to: string) => ipcRenderer.invoke(WORKSPACE_CHANNELS.rename, from, to),
   },
   agent: {
     loadConfig: () => ipcRenderer.invoke(AGENT_CHANNELS.loadConfig),

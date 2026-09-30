@@ -1,9 +1,10 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const runtimeDirectory = join(import.meta.dirname, "../../runtime");
+const runtimeDirectory = join(import.meta.dirname, "../../../runtime");
 const outputDirectory = join(import.meta.dirname, "../dist-electron");
 const executableName = process.platform === "win32" ? "loom-runtime.exe" : "loom-runtime";
+const goExecutable = Bun.which("go") ?? "go";
 mkdirSync(outputDirectory, { recursive: true });
 
 const buildEnvironment = {
@@ -13,7 +14,7 @@ const buildEnvironment = {
 };
 const icons = Bun.spawnSync(
   [
-    "go",
+    goExecutable,
     "run",
     "./cmd/loom-icon",
     "../apps/desktop/public/loom-avatar.png",
@@ -32,7 +33,7 @@ if (icons.exitCode !== 0) {
   process.exitCode = icons.exitCode;
 } else {
   const build = Bun.spawnSync(
-    ["go", "build", "-o", join(outputDirectory, executableName), "./cmd/loom-runtime"],
+    [goExecutable, "build", "-o", join(outputDirectory, executableName), "./cmd/loom-runtime"],
     {
       cwd: runtimeDirectory,
       env: buildEnvironment,

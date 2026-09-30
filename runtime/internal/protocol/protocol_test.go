@@ -99,6 +99,33 @@ func TestWorkspaceRPCOpensListsReadsAndWritesWithinGrantedRoot(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "src", "new.go")); err != nil {
 		t.Fatalf("new workspace file was not created: %v", err)
 	}
+	renamed := server.Handle(request("rename-file", "workspace.rename", map[string]string{
+		"from": "src/new.go",
+		"to":   "src/renamed.go",
+	}))
+	if renamed.Error != nil {
+		t.Fatalf("workspace.rename failed: %s", renamed.Error.Message)
+	}
+	if _, err := os.Stat(filepath.Join(root, "src", "renamed.go")); err != nil {
+		t.Fatalf("renamed workspace file was not found: %v", err)
+	}
+	collision := server.Handle(request("rename-collision", "workspace.rename", map[string]string{
+		"from": "src/renamed.go",
+		"to":   "src/main.go",
+	}))
+	if collision.Error == nil {
+		t.Fatal("workspace.rename must not replace an existing file")
+	}
+	if _, err := os.Stat(filepath.Join(root, "src", "renamed.go")); err != nil {
+		t.Fatalf("rename collision removed the source file: %v", err)
+	}
+	escape := server.Handle(request("rename-escape", "workspace.rename", map[string]string{
+		"from": "src/renamed.go",
+		"to":   "../outside.go",
+	}))
+	if escape.Error == nil {
+		t.Fatal("workspace.rename must reject paths outside the selected root")
+	}
 	duplicate := server.Handle(request("create-duplicate", "workspace.createFile", map[string]string{"path": "src/main.go"}))
 	if duplicate.Error == nil {
 		t.Fatal("workspace.createFile must not overwrite an existing file")
@@ -107,12 +134,49 @@ func TestWorkspaceRPCOpensListsReadsAndWritesWithinGrantedRoot(t *testing.T) {
 	if directory.Error != nil {
 		t.Fatalf("workspace.createDirectory failed: %s", directory.Error.Message)
 	}
-	deleted := server.Handle(request("delete", "workspace.delete", map[string]string{"path": "src/components"}))
+	if err := os.WriteFile(filepath.Join(root, "src", "components", "child.go"), []byte("package child"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	renamedDirectory := server.Handle(request("rename-directory", "workspace.rename", map[string]string{
+		"from": "src/components",
+		"to":   "src/ui",
+	}))
+	if renamedDirectory.Error != nil {
+		t.Fatalf("workspace.rename directory failed: %s", renamedDirectory.Error.Message)
+	}
+	if _, err := os.Stat(filepath.Join(root, "src", "ui", "child.go")); err != nil {
+		t.Fatalf("renamed directory did not preserve its contents: %v", err)
+	}
+	deleted := server.Handle(request("delete", "workspace.delete", map[string]string{"path": "src/ui"}))
 	if deleted.Error != nil {
 		t.Fatalf("workspace.delete failed: %s", deleted.Error.Message)
 	}
-	if _, err := os.Stat(filepath.Join(root, "src", "components")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(root, "src", "ui")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("deleted workspace directory stat error=%v", err)
+	}
+}
+
+func TestWorkspaceCreateRootSelectsNewDirectoryAsActiveWorkspace(t *testing.T) {
+	parent := t.TempDir()
+	server := NewServer(nil)
+	t.Cleanup(func() { _ = server.Close() })
+
+	created := server.Handle(request("create", "workspace.createRoot", map[string]string{
+		"parent": parent,
+		"name":   "new-workspace",
+	}))
+	var root struct {
+		Root string `json:"root"`
+	}
+	decodeResult(t, created, &root)
+	if root.Root != filepath.Join(parent, "new-workspace") {
+		t.Fatalf("unexpected new workspace root: %q", root.Root)
+	}
+	entries := server.Handle(request("list", "workspace.list", map[string]string{"path": "."}))
+	var listed []any
+	decodeResult(t, entries, &listed)
+	if len(listed) != 0 {
+		t.Fatalf("new workspace should start empty, got %#v", listed)
 	}
 }
 
@@ -181,6 +245,36 @@ func TestWorkspaceRPCRequiresVersionAndAnOpenedRoot(t *testing.T) {
 	noRoot := server.Handle(request("no-root", "workspace.list", map[string]string{"path": "."}))
 	if noRoot.Error == nil {
 		t.Fatal("expected workspace.list to require workspace.open")
+	}
+}
+
+func TestWorkspaceGitBranchReportsNoGitAndCurrentBranch(t *testing.T) {
+	server := NewServer(nil)
+	defer server.Close()
+	root := t.TempDir()
+	if response := server.Handle(request("open-no-git", "workspace.open", map[string]string{"root": root})); response.Error != nil {
+		t.Fatal(response.Error.Message)
+	}
+	response := server.Handle(request("git-status-no-git", "workspace.gitStatus", map[string]string{}))
+	var status struct {
+		IsGit  bool   `json:"isGit"`
+		Branch string `json:"branch"`
+	}
+	decodeResult(t, response, &status)
+	if status.IsGit || status.Branch != "" {
+		t.Fatalf("no-git status=%#v", status)
+	}
+
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git", "HEAD"), []byte("ref: refs/heads/feature/chat-ui\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	response = server.Handle(request("git-status", "workspace.gitStatus", map[string]string{}))
+	decodeResult(t, response, &status)
+	if !status.IsGit || status.Branch != "feature/chat-ui" {
+		t.Fatalf("git status=%#v", status)
 	}
 }
 
@@ -352,8 +446,20 @@ func TestChatCancelInterruptsTheMatchingActiveRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cancelResponse Response
-	if err := json.Unmarshal(bytes.TrimSpace([]byte(<-output)), &cancelResponse); err != nil {
-		t.Fatal(err)
+	deadline := time.After(time.Second)
+	for cancelResponse.ID != "cancel-1" {
+		select {
+		case frame := <-output:
+			var response Response
+			if err := json.Unmarshal(bytes.TrimSpace([]byte(frame)), &response); err != nil {
+				t.Fatal(err)
+			}
+			if response.ID == "cancel-1" {
+				cancelResponse = response
+			}
+		case <-deadline:
+			t.Fatal("cancel response was not emitted")
+		}
 	}
 	var cancelResult struct {
 		Cancelled bool `json:"cancelled"`

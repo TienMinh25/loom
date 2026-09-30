@@ -1,12 +1,14 @@
 # Product Definition — v1
 
-**Docs version:** 1.19.0
+**Docs version:** 1.24.0
 **Status:** Updated baseline
-**Last updated:** 2026-09-29
+**Last updated:** 2026-09-30
 
 ## 1. Product intent
 
 Build a cross-platform desktop application for Windows and macOS that provides a polished coding-agent harness inspired by the workflows of Codex and Kiro. It should let a user connect to an OpenAI-compatible provider, work in a local codebase, and supervise agent actions.
+
+The desktop workspace should also grow into a local IDE with polished file editing and agent workflows. Codex is the primary workbench reference and VS Code is the editor/explorer reference. Code suggestions and Git integration are outside this scope.
 
 The desktop UI is written in TypeScript with React, hosted in Electron, and built/tested with Bun. Browser preview uses mock data; desktop mode integrates with the Go agent runtime through a versioned local interface (JSON-lines RPC over a supervised process plus typed Electron IPC).
 
@@ -60,7 +62,7 @@ The v1 UI places the workspace explorer on the right side as requested. Keep pan
 
 ### 4.4 Conversation lifecycle
 
-Conversation messages and the selected conversation persist in versioned renderer local storage; users can delete conversations after confirmation, and the UI prevents creating another empty chat. This is not yet a runtime database or canonical transcript store. See the session storage proposal. Deleting a conversation never deletes workspace files.
+Conversation messages and the selected conversation persist in versioned renderer local storage. A blank composer draft is not listed as a session; the first sent message creates the session. Users can delete conversations after confirmation, and deleting the last one returns the sidebar to an empty state. This is not yet a runtime database or canonical transcript store. See the session storage proposal. Deleting a conversation never deletes workspace files.
 
 ## 5. V1 scope
 
@@ -71,6 +73,8 @@ Conversation messages and the selected conversation persist in versioned rendere
 - Persist API keys using Electron OS-backed encryption.
 - OAuth/backend identity, model discovery, and organization sign-in remain future work.
 - Open-folder/workspace selection and a right-side file explorer.
+- Workspace-scoped file and folder rename that preserves content and updates open editor tabs.
+- Workspace-wide file-name/path search that can open matching files in the editor.
 - In-session conversation state (durable local persistence remains future work).
 - Streaming assistant responses, stop/cancel.
 - Local runtime mediation for workspace list/read/write with approval before each model-proposed tool call.
@@ -84,7 +88,6 @@ Conversation messages and the selected conversation persist in versioned rendere
 ### Should have
 
 - MCP client support for connecting external tools/resources, with per-server controls.
-- Git status awareness and a simple checkpoint/revert path.
 - Export and delete local conversation history.
 - Plugin diagnostics (version, enabled state, requested capabilities, logs).
 
@@ -94,6 +97,7 @@ Conversation messages and the selected conversation persist in versioned rendere
 - Cloud synchronization of conversations.
 - Collaboration/multi-user editing.
 - Embeddings/vector database as a prerequisite for code search.
+- Git integration and generated code suggestions are outside the current IDE work scope.
 - A built-in hosted gateway service.
 
 ## 6. Success criteria

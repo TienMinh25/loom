@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, safeStorage } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import type { PathLike, WriteFileOptions } from "node:fs";
 import { join } from "node:path";
@@ -12,6 +12,80 @@ import { AGENT_CHANNELS, WORKSPACE_CHANNELS } from "../shared/desktopApi.js";
 
 let mainWindow: BrowserWindow | null = null;
 let runtime: ReturnType<typeof startRuntime> | null = null;
+let autoSaveEnabled = false;
+
+function createApplicationMenu() {
+  return Menu.buildFromTemplate([
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "New Chat",
+          accelerator: "CmdOrCtrl+N",
+          click: () => mainWindow?.webContents.send("app:menu", "new-chat"),
+        },
+        {
+          label: "Open Workspace…",
+          accelerator: "CmdOrCtrl+Shift+O",
+          click: () => mainWindow?.webContents.send("app:menu", "open-folder"),
+        },
+        {
+          label: "Create Workspace…",
+          click: () => mainWindow?.webContents.send("app:menu", "create-workspace"),
+        },
+        { type: "separator" },
+        {
+          label: "Save All",
+          accelerator: "CmdOrCtrl+Alt+S",
+          click: () => mainWindow?.webContents.send("app:menu", "save-all"),
+        },
+        {
+          label: "Auto Save",
+          type: "checkbox",
+          checked: autoSaveEnabled,
+          click: (item) => {
+            autoSaveEnabled = item.checked;
+            mainWindow?.webContents.send("app:menu", "auto-save", autoSaveEnabled);
+          },
+        },
+      ],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        {
+          label: "Toggle Conversations",
+          click: () => mainWindow?.webContents.send("app:menu", "toggle-left"),
+        },
+        {
+          label: "Toggle Workspace Explorer",
+          click: () => mainWindow?.webContents.send("app:menu", "toggle-right"),
+        },
+      ],
+    },
+    {
+      label: "Help",
+      submenu: [
+        { label: "About Loom", click: () => mainWindow?.webContents.send("app:menu", "about") },
+      ],
+    },
+  ]);
+}
 
 function getRuntime() {
   runtime ??= startRuntime(import.meta.dirname, app.isPackaged);
@@ -20,11 +94,15 @@ function getRuntime() {
 
 const workspaceBridge = createWorkspaceBridge(
   { request: (method, params) => getRuntime().request(method, params) },
-  async () => {
+  async (intent) => {
     if (!mainWindow) {
       throw new Error("desktop window is not available");
     }
     const selection = await dialog.showOpenDialog(mainWindow, {
+      title:
+        intent === "create"
+          ? "Choose a parent folder for the new workspace"
+          : "Choose a workspace folder",
       properties: ["openDirectory"],
     });
     return selection.canceled ? null : (selection.filePaths[0] ?? null);
@@ -47,7 +125,11 @@ const providerConfigStore = createProviderConfigStore(
 );
 
 ipcMain.handle(WORKSPACE_CHANNELS.open, () => workspaceBridge.openWorkspace());
+ipcMain.handle(WORKSPACE_CHANNELS.create, (_event, name: string) =>
+  workspaceBridge.createWorkspace(name),
+);
 ipcMain.handle(WORKSPACE_CHANNELS.list, (_event, path: string) => workspaceBridge.list(path));
+ipcMain.handle(WORKSPACE_CHANNELS.gitStatus, () => workspaceBridge.gitStatus());
 ipcMain.handle(WORKSPACE_CHANNELS.readFile, (_event, path: string) =>
   workspaceBridge.readFile(path),
 );
@@ -61,6 +143,9 @@ ipcMain.handle(WORKSPACE_CHANNELS.createDirectory, (_event, path: string) =>
   workspaceBridge.createDirectory(path),
 );
 ipcMain.handle(WORKSPACE_CHANNELS.delete, (_event, path: string) => workspaceBridge.delete(path));
+ipcMain.handle(WORKSPACE_CHANNELS.rename, (_event, from: string, to: string) =>
+  workspaceBridge.rename(from, to),
+);
 ipcMain.handle(AGENT_CHANNELS.loadConfig, async () => {
   const config = await providerConfigStore.load();
   if (config.configured) {
@@ -82,6 +167,17 @@ ipcMain.handle(AGENT_CHANNELS.stream, (event, runId: string, request) =>
     }
   }),
 );
+
+ipcMain.on("app:auto-save-state", (_event, enabled: boolean) => {
+  autoSaveEnabled = enabled;
+  const menu = Menu.getApplicationMenu();
+  const item = menu?.items
+    .find((entry) => entry.label === "File")
+    ?.submenu?.items.find((entry) => entry.label === "Auto Save");
+  if (item) {
+    item.checked = enabled;
+  }
+});
 
 function createMainWindow() {
   const developmentUrl = process.env.VITE_DEV_SERVER_URL;
@@ -114,6 +210,7 @@ function createMainWindow() {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(createApplicationMenu());
   createMainWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

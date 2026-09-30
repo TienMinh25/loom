@@ -9,6 +9,8 @@
     "dev": "bun run --cwd apps/desktop dev",
     "dev:desktop": "bun run --cwd apps/desktop dev:desktop",
     "build": "bun run --cwd apps/desktop build",
+    "package:win": "bun run --cwd apps/desktop package:win",
+    "package:mac": "bun run --cwd apps/desktop package:mac",
     "lint": "bun run --cwd apps/desktop lint",
     "format": "bun run --cwd apps/desktop format",
     "format:check": "bun run --cwd apps/desktop format:check",

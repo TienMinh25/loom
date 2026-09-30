@@ -2,12 +2,15 @@ export const DESKTOP_API_VERSION = 1;
 
 export const WORKSPACE_CHANNELS = {
   open: "workspace:v1:open",
+  create: "workspace:v1:create",
   list: "workspace:v1:list",
+  gitStatus: "workspace:v1:git-status",
   readFile: "workspace:v1:read-file",
   writeFile: "workspace:v1:write-file",
   createFile: "workspace:v1:create-file",
   createDirectory: "workspace:v1:create-directory",
   delete: "workspace:v1:delete",
+  rename: "workspace:v1:rename",
 } as const;
 
 export const AGENT_CHANNELS = {
@@ -58,17 +61,22 @@ export type WorkspaceRoot = { root: string };
 
 export type DesktopWorkspaceApi = {
   open(): Promise<WorkspaceRoot | null>;
+  create?(name: string): Promise<WorkspaceRoot | null>;
   list(path: string): Promise<WorkspaceEntry[]>;
+  gitStatus?(): Promise<{ isGit: boolean; branch: string }>;
   readFile(path: string): Promise<{ content: string }>;
   writeFile(path: string, content: string): Promise<{ written: boolean }>;
   createFile(path: string): Promise<{ created: boolean }>;
   createDirectory(path: string): Promise<{ created: boolean }>;
   delete(path: string): Promise<{ deleted: boolean }>;
+  rename(from: string, to: string): Promise<{ renamed: boolean }>;
 };
 
 export type DesktopApi = {
   version: typeof DESKTOP_API_VERSION;
   platform: string;
+  onMenuAction?(callback: (action: string, value?: boolean) => void): () => void;
+  setAutoSaveState?(enabled: boolean): void;
   workspace: DesktopWorkspaceApi;
   agent: DesktopAgentApi;
 };

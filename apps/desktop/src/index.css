@@ -1,3 +1,8 @@
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
 :root {
   font-family: Inter, "Segoe UI", sans-serif;
   color: #e5e7eb;
@@ -20,8 +25,19 @@ body {
   overflow: hidden;
 }
 
-button {
-  font: inherit;
+@layer base {
+  button {
+    font: inherit;
+    color: inherit;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 #root {

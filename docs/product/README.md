@@ -1,9 +1,9 @@
 # Desktop Agent Harness — Product Docs
 
-**Documentation version:** 1.19.0
+**Documentation version:** 1.98.0
 **Product version covered:** v1 (initial definition)  
 **Status:** Draft baseline  
-**Last updated:** 2026-09-29
+**Last updated:** 2026-09-30
 
 This folder is the source of truth for the first version of the desktop agent harness. Update the version and `CHANGELOG.md` whenever a decision or requirement changes. Keep implementation-specific proposals labeled as proposals until accepted.
 
@@ -14,6 +14,7 @@ This folder is the source of truth for the first version of the desktop agent ha
 - [Session storage design](SESSION_STORAGE.md) — current renderer persistence and the proposed SQLite/JSONL runtime store.
 - [UI behavior](UI.md) — layout and interaction behavior, including workspace/folder navigation.
 - [V1 delivery plan](PLAN.md) — staged implementation plan, TDD gates, and initial milestones.
+- [IDE and workbench checklist](IDE_ROADMAP.md) — tracked UI, workspace, editor, and agent workbench outcomes.
 - [Version history](CHANGELOG.md) — dated record of decisions and document changes.
 
 ## Versioning rules
